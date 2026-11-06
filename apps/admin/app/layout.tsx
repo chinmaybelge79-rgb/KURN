@@ -1,0 +1,1 @@
+export default function RootLayout({ children }: { children: any }) { return <html lang="en"><body style={{ margin: 0, fontFamily: 'Inter, Arial, sans-serif', background: '#f7f9f8', color: '#111315' }}>{children}</body></html>; }

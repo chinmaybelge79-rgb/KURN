@@ -1,0 +1,451 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  CONSUMER
+  GYM_OWNER
+  TRAINER
+  ADMIN
+}
+
+enum VerificationStatus {
+  NOT_SUBMITTED
+  PENDING
+  UNDER_REVIEW
+  VERIFIED
+  REJECTED
+  SUSPENDED
+}
+
+enum EnquiryStatus {
+  NEW
+  CONTACTED
+  VISIT_SCHEDULED
+  CONVERTED
+  CLOSED
+}
+
+enum ConnectionStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  BLOCKED
+}
+
+enum PaymentStatus {
+  CREATED
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+enum BookingStatus {
+  REQUESTED
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum NotificationType {
+  GENERAL
+  ENQUIRY
+  CONNECTION
+  BOOKING
+  PAYMENT
+  VERIFICATION
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAUSED
+  CANCELLED
+  EXPIRED
+}
+
+enum MembershipStatus {
+  PENDING
+  ACTIVE
+  CANCELLED
+  EXPIRED
+}
+
+model User {
+  id                  String               @id @default(uuid()) @db.Uuid
+  phone               String               @unique
+  fullName            String?
+  email               String?
+  dateOfBirth         DateTime?
+  role                UserRole
+  city                String?
+  state               String?
+  locality            String?
+  pinCode             String?
+  latitude            Decimal?             @db.Decimal(9, 6)
+  longitude           Decimal?             @db.Decimal(9, 6)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  gymOwner            GymOwner?
+  trainer             Trainer?
+  enquiries           Enquiry[]
+  sentConnections     Connection[]         @relation("sentConnections")
+  receivedConnections Connection[]         @relation("receivedConnections")
+  memberships         GymMembership[]
+  payments            Payment[]
+  bookings            Booking[]
+  messages            Message[]
+  conversationMembers ConversationMember[]
+  auditLogs           AuditLog[]
+  notifications       Notification[]
+  attendances         Attendance[]
+  reports             Report[]
+  userRewards         UserReward[]
+  subscriptions       Subscription[]
+  authSessions        AuthSession[]
+
+  @@index([role, city, state])
+}
+
+model GymOwner {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @unique @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gyms   Gym[]
+}
+
+model Gym {
+  id                 String              @id @default(uuid()) @db.Uuid
+  ownerId            String              @db.Uuid
+  owner              GymOwner            @relation(fields: [ownerId], references: [id])
+  name               String
+  description        String?
+  address            String
+  city               String
+  state              String
+  locality           String?
+  pinCode            String?
+  latitude           Decimal             @db.Decimal(9, 6)
+  longitude          Decimal             @db.Decimal(9, 6)
+  verified           Boolean             @default(false)
+  verificationStatus VerificationStatus  @default(NOT_SUBMITTED)
+  rating             Decimal?            @db.Decimal(2, 1)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  plans              GymMembershipPlan[]
+  enquiries          Enquiry[]
+  memberships        GymMembership[]
+  attendances        Attendance[]
+
+  @@index([city, state, locality])
+}
+
+model GymMembershipPlan {
+  id           String          @id @default(uuid()) @db.Uuid
+  gymId        String          @db.Uuid
+  gym          Gym             @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  name         String
+  durationDays Int
+  pricePaise   Int
+  description  String?
+  active       Boolean         @default(true)
+  memberships  GymMembership[]
+
+  @@index([gymId, active])
+}
+
+model GymMembership {
+  id        String            @id @default(uuid()) @db.Uuid
+  userId    String            @db.Uuid
+  gymId     String            @db.Uuid
+  planId    String            @db.Uuid
+  user      User              @relation(fields: [userId], references: [id])
+  gym       Gym               @relation(fields: [gymId], references: [id])
+  plan      GymMembershipPlan @relation(fields: [planId], references: [id])
+  startsAt  DateTime
+  expiresAt DateTime
+  paymentId String?           @unique @db.Uuid
+  status    MembershipStatus  @default(PENDING)
+  createdAt DateTime          @default(now())
+
+  @@index([userId, expiresAt])
+  @@index([gymId, expiresAt])
+}
+
+model Trainer {
+  id                 String                @id @default(uuid()) @db.Uuid
+  userId             String                @unique @db.Uuid
+  user               User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bio                String?
+  experienceYears    Int?
+  specialisations    String[]
+  qualifications     String[]
+  serviceCity        String?
+  serviceState       String?
+  hourlyRatePaise    Int?
+  rating             Decimal?              @db.Decimal(2, 1)
+  verified           Boolean               @default(false)
+  verificationStatus VerificationStatus    @default(NOT_SUBMITTED)
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  availability       TrainerAvailability[]
+  bookings           Booking[]
+
+  @@index([serviceCity, serviceState, verified])
+}
+
+model TrainerAvailability {
+  id        String   @id @default(uuid()) @db.Uuid
+  trainerId String   @db.Uuid
+  trainer   Trainer  @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+  startsAt  DateTime
+  endsAt    DateTime
+  capacity  Int      @default(1)
+
+  @@index([trainerId, startsAt])
+}
+
+model Connection {
+  id         String           @id @default(uuid()) @db.Uuid
+  senderId   String           @db.Uuid
+  receiverId String           @db.Uuid
+  sender     User             @relation("sentConnections", fields: [senderId], references: [id])
+  receiver   User             @relation("receivedConnections", fields: [receiverId], references: [id])
+  status     ConnectionStatus @default(PENDING)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@unique([senderId, receiverId])
+}
+
+model Enquiry {
+  id               String        @id @default(uuid()) @db.Uuid
+  userId           String        @db.Uuid
+  gymId            String        @db.Uuid
+  user             User          @relation(fields: [userId], references: [id])
+  gym              Gym           @relation(fields: [gymId], references: [id])
+  message          String
+  preferredVisitAt DateTime?
+  status           EnquiryStatus @default(NEW)
+  createdAt        DateTime      @default(now())
+
+  @@index([gymId, status])
+}
+
+model Conversation {
+  id        String               @id @default(uuid()) @db.Uuid
+  createdAt DateTime             @default(now())
+  members   ConversationMember[]
+  messages  Message[]
+}
+
+model ConversationMember {
+  conversationId String       @db.Uuid
+  userId         String       @db.Uuid
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, userId])
+}
+
+model Message {
+  id             String       @id @default(uuid()) @db.Uuid
+  conversationId String       @db.Uuid
+  senderId       String       @db.Uuid
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User         @relation(fields: [senderId], references: [id])
+  body           String
+  readAt         DateTime?
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId, createdAt])
+}
+
+model Booking {
+  id          String        @id @default(uuid()) @db.Uuid
+  userId      String        @db.Uuid
+  trainerId   String        @db.Uuid
+  user        User          @relation(fields: [userId], references: [id])
+  trainer     Trainer       @relation(fields: [trainerId], references: [id])
+  startsAt    DateTime
+  endsAt      DateTime
+  amountPaise Int
+  status      BookingStatus @default(REQUESTED)
+  payment     Payment?
+  createdAt   DateTime      @default(now())
+
+  @@index([trainerId, startsAt])
+  @@index([userId, startsAt])
+}
+
+model Payment {
+  id               String        @id @default(uuid()) @db.Uuid
+  userId           String        @db.Uuid
+  bookingId        String?       @unique @db.Uuid
+  user             User          @relation(fields: [userId], references: [id])
+  booking          Booking?      @relation(fields: [bookingId], references: [id])
+  amountPaise      Int
+  platformFeePaise Int
+  provider         String
+  providerOrderId  String?       @unique
+  status           PaymentStatus @default(CREATED)
+  idempotencyKey   String        @unique
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String?  @db.Uuid
+  actor      User?    @relation(fields: [actorId], references: [id])
+  action     String
+  entityType String
+  entityId   String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+}
+
+model OtpChallenge {
+  id        String   @id @default(uuid()) @db.Uuid
+  phone     String   @unique
+  codeHash  String
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+model AuthSession {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, expiresAt])
+}
+
+model Notification {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @db.Uuid
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType @default(GENERAL)
+  title     String
+  body      String
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  @@index([userId, readAt, createdAt])
+}
+
+model Attendance {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @db.Uuid
+  gymId        String   @db.Uuid
+  membershipId String?  @db.Uuid
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gym          Gym      @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  source       String
+  tokenHash    String?
+  checkedAt    DateTime @default(now())
+
+  @@index([userId, checkedAt])
+  @@index([gymId, checkedAt])
+}
+
+model Verification {
+  id           String             @id @default(uuid()) @db.Uuid
+  subjectType  String
+  subjectId    String             @db.Uuid
+  status       VerificationStatus @default(PENDING)
+  documents    Json?
+  reviewerId   String?            @db.Uuid
+  reviewReason String?
+  submittedAt  DateTime           @default(now())
+  reviewedAt   DateTime?
+
+  @@index([subjectType, subjectId, status])
+}
+
+model Report {
+  id         String    @id @default(uuid()) @db.Uuid
+  reporterId String    @db.Uuid
+  reporter   User      @relation(fields: [reporterId], references: [id])
+  targetType String
+  targetId   String    @db.Uuid
+  reason     String
+  status     String    @default("OPEN")
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  @@index([status, createdAt])
+}
+
+model Reward {
+  id          String       @id @default(uuid()) @db.Uuid
+  code        String       @unique
+  title       String
+  description String
+  active      Boolean      @default(true)
+  userRewards UserReward[]
+}
+
+model UserReward {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  rewardId  String    @db.Uuid
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reward    Reward    @relation(fields: [rewardId], references: [id])
+  claimedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@unique([userId, rewardId])
+}
+
+model Subscription {
+  id                     String             @id @default(uuid()) @db.Uuid
+  userId                 String             @db.Uuid
+  user                   User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tier                   String
+  status                 SubscriptionStatus @default(ACTIVE)
+  providerSubscriptionId String?            @unique
+  startsAt               DateTime
+  endsAt                 DateTime?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  @@index([userId, status])
+}
+
+model Refund {
+  id          String    @id @default(uuid()) @db.Uuid
+  paymentId   String    @db.Uuid
+  amountPaise Int
+  reason      String
+  status      String    @default("REQUESTED")
+  createdAt   DateTime  @default(now())
+  processedAt DateTime?
+
+  @@index([paymentId, status])
+}
+
+model SellerSettlement {
+  id          String    @id @default(uuid()) @db.Uuid
+  sellerType  String
+  sellerId    String    @db.Uuid
+  paymentId   String    @db.Uuid
+  amountPaise Int
+  status      String    @default("PENDING")
+  settledAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([sellerType, sellerId, status])
+}

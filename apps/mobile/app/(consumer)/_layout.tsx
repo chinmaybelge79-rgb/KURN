@@ -1,0 +1,4 @@
+// @ts-nocheck
+import { Tabs } from 'expo-router';
+import { Text } from 'react-native';
+export default function ConsumerLayout() { return <Tabs screenOptions={{ tabBarActiveTintColor: '#111315', tabBarInactiveTintColor: '#777E83', headerShown: false }}><Tabs.Screen name="home" options={{ title: 'Home', tabBarIcon: () => <Text>⌂</Text> }} /><Tabs.Screen name="explore" options={{ title: 'Explore', tabBarIcon: () => <Text>⌕</Text> }} /><Tabs.Screen name="connect" options={{ title: 'Connect', tabBarIcon: () => <Text>◌</Text> }} /><Tabs.Screen name="activity" options={{ title: 'Activity', tabBarIcon: () => <Text>◷</Text> }} /><Tabs.Screen name="profile" options={{ title: 'Profile', tabBarIcon: () => <Text>◯</Text> }} /><Tabs.Screen name="memberships" options={{ href: null }} /><Tabs.Screen name="bookings" options={{ href: null }} /><Tabs.Screen name="notifications" options={{ href: null }} /></Tabs>; }

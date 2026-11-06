@@ -1,0 +1,16 @@
+import { useCallback, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { ActivityIndicator, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { api } from '../../src/api';
+import { theme } from '../../src/theme';
+
+type Membership = { id: string; status: string; startsAt?: string; expiresAt?: string; gym?: { name: string; city?: string }; plan?: { name: string; durationDays: number; pricePaise: number } };
+
+export default function Memberships() {
+  const [items, setItems] = useState<Membership[]>([]);
+  const [loading, setLoading] = useState(true);
+  useFocusEffect(useCallback(() => { let active = true; setLoading(true); api<Membership[]>('/users/me/memberships').then(data => active && setItems(data)).catch(() => active && setItems([])).finally(() => active && setLoading(false)); return () => { active = false; }; }, []));
+  return <SafeAreaView style={s.safe}><ScrollView contentContainerStyle={s.container}><Text style={s.kicker}>YOUR MEMBERSHIPS</Text><Text style={s.title}>Access that moves with you.</Text><Text style={s.subtitle}>Your plans, payment status and gym access in one place.</Text>{loading ? <ActivityIndicator color={theme.colors.ink} style={s.loader}/> : items.length === 0 ? <View style={s.empty}><Text style={s.emptyTitle}>No membership yet</Text><Text style={s.subtitle}>Explore a gym and choose a plan when you’re ready to start.</Text></View> : items.map(item => <View key={item.id} style={s.card}><View style={s.cardTop}><Text style={s.cardTitle}>{item.gym?.name ?? 'KURN membership'}</Text><Text style={s.badge}>{item.status}</Text></View><Text style={s.subtitle}>{item.plan?.name ?? 'Membership plan'} · {item.plan ? `₹${Math.round(item.plan.pricePaise / 100)}` : 'Amount pending'}</Text>{item.expiresAt ? <Text style={s.meta}>Valid until {new Date(item.expiresAt).toLocaleDateString('en-IN')}</Text> : <Text style={s.meta}>Payment confirmation pending</Text>}<Pressable style={s.secondary}><Text style={s.secondaryText}>View access details  →</Text></Pressable></View>)}</ScrollView></SafeAreaView>;
+}
+
+const s = StyleSheet.create({ safe:{flex:1,backgroundColor:theme.colors.canvas},container:{padding:24,gap:12},kicker:{fontSize:11,fontWeight:'800',letterSpacing:2,color:theme.colors.muted},title:{fontSize:32,lineHeight:36,fontWeight:'700',color:theme.colors.text,letterSpacing:-.8,marginTop:4},subtitle:{fontSize:14,lineHeight:21,color:theme.colors.muted},loader:{marginTop:32},empty:{marginTop:22,padding:20,borderRadius:theme.radius.lg,backgroundColor:theme.colors.card,gap:6},emptyTitle:{fontSize:18,fontWeight:'700',color:theme.colors.text},card:{backgroundColor:theme.colors.card,borderRadius:theme.radius.lg,padding:18,gap:7,marginTop:6},cardTop:{flexDirection:'row',justifyContent:'space-between',gap:8},cardTitle:{fontSize:18,fontWeight:'700',color:theme.colors.text,flex:1},badge:{fontSize:10,fontWeight:'800',letterSpacing:.6,color:theme.colors.ink,backgroundColor:theme.colors.accent,paddingHorizontal:8,paddingVertical:5,borderRadius:theme.radius.pill},meta:{fontSize:12,color:theme.colors.muted},secondary:{alignSelf:'flex-start',marginTop:8},secondaryText:{fontSize:13,fontWeight:'700',color:theme.colors.text} });

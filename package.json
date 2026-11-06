@@ -1,0 +1,28 @@
+{
+  "name": "kurn",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev": "pnpm --parallel --filter @kurn/api --filter @kurn/admin --filter @kurn/mobile dev",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "db:generate": "prisma generate",
+    "db:validate": "prisma validate",
+    "db:format": "prisma format",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down",
+    "db:migrate": "prisma migrate dev --name foundation",
+    "db:seed": "tsx prisma/seed.ts"
+  },
+  "devDependencies": {
+    "prisma": "6.19.3",
+    "query-string": "7.1.3",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "@prisma/client": "6.19.3"
+  }
+}
